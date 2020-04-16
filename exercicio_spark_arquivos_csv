@@ -1,0 +1,196 @@
+
+
+val df_genome_score = spark.read.format("csv").option("header", "true").load("/home/semantix/workspace/Aulas/ml-20m/genome-scores.csv")
+val df_genome_tags = spark.read.format("csv").option("header", "true").load("/home/semantix/workspace/Aulas/ml-20m/genome-tags.csv")
+val df_links = spark.read.format("csv").option("header", "true").load("/home/semantix/workspace/Aulas/ml-20m/links.csv")
+val df_ratings = spark.read.format("csv").option("header", "true").load("/home/semantix/workspace/Aulas/ml-20m/ratings.csv")
+val df_tags = spark.read.format("csv").option("header", "true").load("/home/semantix/workspace/Aulas/ml-20m/tags.csv")
+val df_movies = spark.read.format("csv").option("header", "true").load("/home/semantix/workspace/Aulas/ml-20m/movies.csv")
+
+
+
+-- exercicio 1 
+val innerJoin_genome_score_tags = df_genome_score.join(df_genome_tags,"tagId")
+-- quantidade de registros resultantes 
+innerJoin_genome_score_tags.count()
+
+-- quantidade de registros com relevancia maior que 0.5 ?
+innerJoin_genome_score_tags.createOrReplaceTempView("tb_inner_genome_score_tags")
+val select_relevancia = spark.sqlContext.sql("select * from tb_inner_genome_score_tags where relevance > 0.5")
+select_relevantcia.count()
+
+-- grave 1 arquivo csv com separador ';' - qual o tamanho do arquivo em bytes
+innerJoin_genome_score_tags.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").option("sep", ";").save("/home/semantix/workspace/Aulas/exercicioSpark/innerJoin_genome_score_tags.csv")
+
+
+-- salvando de novo com compressão gzip, qual o tamanho do arquivo em bytes ?
+innerJoin_genome_score_tags.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").option("sep", ";").option("codec", "org.apache.hadoop.io.compress.GzipCodec").save("/home/semantix/workspace/Aulas/exercicioSpark/innerJoin_genome_score_tags.csv")
+
+-----------------------------------------------------------------
+
+-- exercicio 2 - (genome_scores X genome-tags) x movies (6 colunas resultantes)
+val innerJoin_genome_score_movies = df_movies.join(df_genome_score,"movieId")
+val innerJoin_genome_score_tags_movies = innerJoin_genome_score_movies.join(df_genome_tags,"tagId")
+
+-- qual a quantidade de registros ?
+innerJoin_genome_score_tags_movies.count()
+
+-- qual o filme que tem a tag com a maior relevancia ?
+innerJoin_genome_score_tags_movies.createOrReplaceTempView("tb_innerJoin_genome_score_tags_movies")
+val select_max_relevancia = spark.sqlContext.sql("select MAX(relevancia) from tb_innerJoin_genome_score_tags_movies")
+select_max_relevancia.show()
+val select_maior_relevancia = spark.sqlContext.sql("select * from tb_innerJoin_genome_score_tags_movies where relevance = 1.0")
+select_maior_relevancia.show()
+
+-- considerando apenas relevância acima de 0.5, quantos registros aparecem ?
+innerJoin_genome_score_tags_movies.createOrReplaceTempView("tb_inner_genome_score_tags_movies")
+val select_relevancia_movie = spark.sqlContext.sql("select * from tb_inner_genome_score_tags_movies where relevance > 0.5")
+select_relevancia_movie.count()
+
+
+-- grave 1 arquivo csv com separador ';' - qual o tamanho do arquivo em bytes ?
+innerJoin_genome_score_tags_movies.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").option("sep", ";").save("/home/semantix/workspace/Aulas/exercicioSpark/innerJoin_genome_score_tags_movie.csv")
+
+-- ao salvar com compressão gzip, qual o tamanho do arquivo em bytes ?
+innerJoin_genome_score_tags_movies.repartition(1).write.format("csv").option("header", "true").option("sep",";").option("compression","gzip")..save("/home/semantix/workspace/Aulas/exercicioSpark/innerJoin_genome_score_tags_movies.csv")
+
+
+-- nome dos cinco filmes com maior quantidade de tags ?
+
+-----------------------------------------------------------------
+
+3 - movies X links (5 colunas resultantes)
+-- quantidade de registros resultantes ?
+val innerJoin_movies_links = df_movies.join(df_links,"movieId")
+innerJoin_movies_links.count()
+
+-- grave o DF num arquivo parquet com compressão padrão. qual o tamanho do arquivo em bytes ?
+innerJoin_movies_links.repartition(1).write.format("parquet").save("/home/semantix/workspace/Aulas/exercicioSpark/innerJoin_movies_links.parquet")
+
+-- e utilizando compressão gzip, qual o tamanho do arquivo em bytes ?
+innerJoin_movies_links.repartition(1).write.option("compression","gzip").format("parquet").save("/home/semantix/workspace/Aulas/exercicioSpark/innerJoin_movies_links.parquet")
+
+-- inclua duas colunas, cada uma com o link completo das páginas IMDb e The Movie Database de cada filme.
+innerJoin_movies_links.createOrReplaceTempView("tb_innerJoin_movies_links")
+val select_columns_IMDb_tile = spark.sqlContext.sql("select title,imdbId from tb_innerJoin_movies_links")
+
+-- guarde este DF em 1 arquivo parquet com compressão padrão.
+select_columns_IMDb_tile.repartition(1).write.option("compression","gzip").format("parquet").save("/home/semantix/workspace/Aulas/exercicioSpark/select_columns_IMDb_tile.parquet")
+
+---------------------------------------------------------------------
+
+4 - ratings
+-- levante a frequência das notas, ou seja, quantas vezes cada uma aparece no DF, e coloque em ordem crescente de notas
+val count_ratings = df_ratings.groupBy("rating").count
+count_ratings.createOrReplaceTempView("tb_count_ratings")
+val count_ratings_order = spark.sqlContext.sql("select * from tb_count_ratings order by rating asc")
+count_ratings_order.show()
+
+--------------------------------------------------------------------
+5 - movies X ratings (5 colunas)
+-- quantidade de registros considerando também aqueles que não têm avaliação ?
+val innerJoin_movies_ratings = df_movies.join(df_ratings,Seq("movieId"),"left")
+innerJoin_movies_ratings.count()
+
+-- quantidade de filmes sem avaliação ?
+innerJoin_movies_ratings.createOrReplaceTempView("tb_innerJoin_movies_ratings")
+val select_ratings_null = spark.sqlContext.sql("select * from tb_innerJoin_movies_ratings where rating is null")
+select_ratings_null.count()
+
+-- considerando inclusive os filmes sem avaliações, grave 1 arquivo parquet com compressão snappy, qual o tamanho do arquivo em bytes ?
+select_ratings_null.repartition(1).write.option("compression","snappy").format("parquet").save("/home/semantix/workspace/Aulas/exercicioSpark/select_ratings_null.parquet")
+
+
+-- com compressão gzip, qual o tamanho do arquivo em bytes ?
+select_ratings_null.repartition(1).write.option("compression","gzip").format("parquet").save("/home/semantix/workspace/Aulas/exercicioSpark/select_ratings_null.parquet")
+
+-- com compressão padrão, qual o tamanho do arquivo em bytes ?
+
+select_ratings_null.repartition(1).write.format("parquet").save("/home/semantix/workspace/Aulas/exercicioSpark/innerJoin_movies_links.parquet")
+
+
+-- entre os filmes sem avaliação, qual o código do filme que possui o título mais estenso ?
+select_ratings_null.createOrReplaceTempView("tb_select_ratings_null")
+ val tam_title_null_mais_est = spark.sqlContext.sql("select title, length(title) as tam_title  from tb_select_ratings_null order by tam_title desc")
+tam_title_null_mais_est.show()
+
+-- e o código do filme com título mais curto ?
+select_ratings_null.createOrReplaceTempView("tb_select_ratings_null")
+val tam_title_null_mais_curto = spark.sqlContext.sql("select title, length(title) as tam_title  from tb_select_ratings_null order by tam_title asc")
+tam_title_null_mais_curto.show()
+
+-- entre todos os filmes, qual o código do filme com título mais estenso ?
+innerJoin_movies_ratings.createOrReplaceTempView("tb_innerJoin_movies_ratings")
+val tam_title_todos_mais_est = spark.sqlContext.sql("select title, length(title) as tam_title  from tb_innerJoin_movies_ratings order by tam_title desc")
+tam_title_todos_mais_est.show()
+
+-- calcule a nota média dos filmes. qual o melhor classificado ? com quantas avaliações ?
+innerJoin_movies_ratings.createOrReplaceTempView("tb_innerJoin_movies_ratings")
+val nota_media = spark.sqlContext.sql("select avg(rating) as media from tb_innerJoin_movies_ratings")
+nota_media.show()
+val melhor_classfc_quant = innerJoin_movies_ratings.groupBy("rating","title").count
+melhor_classfc_quant.createOrReplaceTempView("tb_melhor_classfc_quant") 
+val melhor_classfc = spark.sqlContext.sql("select * from tb_melhor_classfc_quant order by count desc")
+melhor_classfc.show()
+
+
+-- considerando apenas os filmes com mais de 50 avaliações, qual a média do melhor classificado? com quantas avaliações ?
+melhor_classfc.show(50)
+
+-- grave este DF em formato parquet com compressão padrão.
+melhor_classfc.repartition(1).write.format("parquet").save("/home/semantix/workspace/Aulas/exercicioSpark/melhor_classfc.parquet")
+
+
+-------------------------------------------------------------------------------
+
+6 - movies X tags (6 colunas resultantes)
+val innerJoin_movies_tags = df_movies.join(df_tags,Seq("movieId"),"left")
+> o que representa o cruzamento entre estes dois dataframes ?
+R: left join 
+> grave 1 arquivo em formato parquet e compressão gzip. qual o tamanho deste arquivo em bytes ?
+innerJoin_movies_tags.repartition(1).write.option("compression","gzip").format("parquet").save("/home/semantix/workspace/Aulas/exercicioSpark/innerJoin_movies_tags.parquet")
+
+> utilizando compressão snappy, qual o tamanho deste arquivo em bytes ?
+innerJoin_movies_tags.repartition(1).write.option("compression","snappy").format("parquet").save("/home/semantix/workspace/Aulas/exercicioSpark/innerJoin_movies_tags.parquet")
+
+> faça um comparativo de tempo entre a gravação entre os dois arquivos.
+--
+
+> verifique se incluiu no dataframe os filmes sem tags. 
+innerJoin_movies_tags.createOrReplaceTempView("tb_innerJoin_movies_tags")
+val filme_sem_tags = spark.sqlContext.sql("select * from tb_innerJoin_movies_tags where tag is null")
+
+> o DF completo (incluindo filmes sem tags), tem quantos registros ?
+innerJoin_movies_tags.count
+
+> considerando apenas filmes com tags, quantos registros são ?
+val filme_com_tags = spark.sqlContext.sql("select * from tb_innerJoin_movies_tags where tag is not null")
+filme_com_tags.count
+
+> considerando apenas filmes com tags, quantos filmes são ?
+filme_com_tags.createOrReplaceTempView("tb_filme_com_tags")
+val filme_count_com_tags = spark.sqlContext.sql("select count(title) from tb_filme_com_tags")
+filme_count_com_tags.show()
+
+> quantos filmes não receberam tags ?
+filme_sem_tags.createOrReplaceTempView("tb_filme_sem_tags")
+val filme_count_sem_tags = spark.sqlContext.sql("select count(title) from tb_filme_sem_tags")
+filme_count_sem_tags.show()
+
+> entre os filmes sem tags, qual o id do filme com o título mais estenso ?
+filme_sem_tags.createOrReplaceTempView("tb_filme_sem_tags")
+val maior_tam_titulo_sem_tag = spark.sqlContext.sql("select title,length(title) as tam_title from tb_filme_sem_tags order by tam_title desc")
+maior_tam_titulo_sem_tag.show()
+
+> entre os filmes sem tags, qual o id do filme com o título mais curto ?
+filme_sem_tags.createOrReplaceTempView("tb_filme_sem_tags")
+val menor_tam_titulo_sem_tag = spark.sqlContext.sql("select title,length(title) as tam_title from tb_filme_sem_tags order by tam_title asc")
+menor_tam_titulo_sem_tag.show()
+
+
+
+
+
+
+
+
