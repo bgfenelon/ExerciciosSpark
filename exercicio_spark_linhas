@@ -1,0 +1,40 @@
+Pessoal, continuando com spark...
+a primeira parte da tarefa consiste na coleta de dados.
+acredito que fazer isso manualmente seja mais rápido... vcs podem fazer essa parte em conjunto.
+1 - COLETA DE COORDENADAS: no google maps procurar todas as estações de metro (linhas amarela, vermelha, verde, azul) e trem (dentro da área das marginais)
+2 - MONTAR ARQUIVO CSV: com o seguinte cabeçalho "estacao;tipo;lat;lon" onde "tipo" significa metro ou trem
+
+val df_linhas = spark.read.format("csv").option("header", "true").load("/home/semantix/workspace/Aulas/ExerciciosSpark/estacoes.csv")
+
+val df_imoveis = spark.read.format("parquet").option("header", "true").load("/home/semantix/workspace/Aulas/ExerciciosSpark/imoveis_20200402.gz.parquet")
+
+
+
+daqui em diante, jornada individual:
+
+A partir do arquivo fornecido que contém diversos imóveis:
+3 - ESTACAO MAIS PROXIMA: encontrar as 3 estacões mais proxima de cada localidade.
+
+df_linhas.createTempView("tb_linhas")
+df_imoveis.createTempView("tb_imoveis")
+
+# aplicando a Fórmula de Haversine em sql 
+
+val coordenadas_linhas_imoveis_todas = spark.sqlContext.sql("""select tb_imoveis.bairro,
+		tb_imoveis.rua,
+		tb_imoveis.cidade,
+		tb_linhas.estacao,
+		tb_linhas.tipo,
+		acos(cos(radians(tb_linhas.lat)) * cos(radians(tb_imoveis.lat)) * cos(radians(tb_linhas.lon) - radians(tb_imoveis.lon)) + sin(radians(tb_linhas.lat)) * sin(radians(tb_imoveis.lat)))* 6371  as distance_km from tb_imoveis CROSS JOIN tb_linhas where tb_imoveis.cidade = 'São Paulo' and tb_imoveis.rua is not null and tb_imoveis.lat is not null and tb_imoveis.lon is not null""")
+
+coordenadas_linhas_imoveis_todas.createTempView("tb_distancia_regioes")
+
+val distancia_tres_estacoes = spark.sqlContext.sql("select * from tb_distancia_regioes where distance_km < 2")
+					
+
+4 - gravar o resultado em 1 arquivo no formato parquet na formatação gzip e snappy (comparando os tempos)
+
+distancia_tres_estacoes.repartition(1).write.option("compression","gzip").format("parquet").save("/home/semantix/workspace/Aulas/ExerciciosSpark/distancia_tres_estacoes.parquet")
+
+distancia_tres_estacoes.repartition(1).write.option("compression","snappy").format("parquet").save("/home/semantix/workspace/Aulas/ExerciciosSpark/distancia_tres_estacoes.parquet")
+
