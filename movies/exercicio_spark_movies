@@ -1,11 +1,11 @@
 
 
-val df_genome_score = spark.read.format("csv").option("header", "true").load("/home/semantix/workspace/Aulas/ml-20m/genome-scores.csv")
-val df_genome_tags = spark.read.format("csv").option("header", "true").load("/home/semantix/workspace/Aulas/ml-20m/genome-tags.csv")
-val df_links = spark.read.format("csv").option("header", "true").load("/home/semantix/workspace/Aulas/ml-20m/links.csv")
-val df_ratings = spark.read.format("csv").option("header", "true").load("/home/semantix/workspace/Aulas/ml-20m/ratings.csv")
-val df_tags = spark.read.format("csv").option("header", "true").load("/home/semantix/workspace/Aulas/ml-20m/tags.csv")
-val df_movies = spark.read.format("csv").option("header", "true").load("/home/semantix/workspace/Aulas/ml-20m/movies.csv")
+val df_genome_score = spark.read.format("csv").option("header", "true").load("movies/genome-scores.csv")
+val df_genome_tags = spark.read.format("csv").option("header", "true").load("movies/genome-tags.csv")
+val df_links = spark.read.format("csv").option("header", "true").load("movies/links.csv")
+val df_ratings = spark.read.format("csv").option("header", "true").load("movies/ratings.csv")
+val df_tags = spark.read.format("csv").option("header", "true").load("movies/tags.csv")
+val df_movies = spark.read.format("csv").option("header", "true").load("movies/movies.csv")
 
 
 
@@ -20,11 +20,11 @@ val select_relevancia = spark.sqlContext.sql("select * from tb_inner_genome_scor
 select_relevantcia.count()
 
 -- grave 1 arquivo csv com separador ';' - qual o tamanho do arquivo em bytes
-innerJoin_genome_score_tags.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").option("sep", ";").save("/home/semantix/workspace/Aulas/exercicioSpark/innerJoin_genome_score_tags.csv")
+innerJoin_genome_score_tags.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").option("sep", ";").save("innerJoin_genome_score_tags.csv")
 
 
 -- salvando de novo com compressão gzip, qual o tamanho do arquivo em bytes ?
-innerJoin_genome_score_tags.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").option("sep", ";").option("codec", "org.apache.hadoop.io.compress.GzipCodec").save("/home/semantix/workspace/Aulas/exercicioSpark/innerJoin_genome_score_tags.csv")
+innerJoin_genome_score_tags.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").option("sep", ";").option("codec", "org.apache.hadoop.io.compress.GzipCodec").save("innerJoin_genome_score_tags.csv")
 
 -----------------------------------------------------------------
 
@@ -49,10 +49,10 @@ select_relevancia_movie.count()
 
 
 -- grave 1 arquivo csv com separador ';' - qual o tamanho do arquivo em bytes ?
-innerJoin_genome_score_tags_movies.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").option("sep", ";").save("/home/semantix/workspace/Aulas/exercicioSpark/innerJoin_genome_score_tags_movie.csv")
+innerJoin_genome_score_tags_movies.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").option("sep", ";").save("innerJoin_genome_score_tags_movie.csv")
 
 -- ao salvar com compressão gzip, qual o tamanho do arquivo em bytes ?
-innerJoin_genome_score_tags_movies.repartition(1).write.format("csv").option("header", "true").option("sep",";").option("compression","gzip")..save("/home/semantix/workspace/Aulas/exercicioSpark/innerJoin_genome_score_tags_movies.csv")
+innerJoin_genome_score_tags_movies.repartition(1).write.format("csv").option("header", "true").option("sep",";").option("compression","gzip")..save("innerJoin_genome_score_tags_movies.csv")
 
 
 -- nome dos cinco filmes com maior quantidade de tags ?
@@ -65,17 +65,17 @@ val innerJoin_movies_links = df_movies.join(df_links,"movieId")
 innerJoin_movies_links.count()
 
 -- grave o DF num arquivo parquet com compressão padrão. qual o tamanho do arquivo em bytes ?
-innerJoin_movies_links.repartition(1).write.format("parquet").save("/home/semantix/workspace/Aulas/exercicioSpark/innerJoin_movies_links.parquet")
+innerJoin_movies_links.repartition(1).write.format("parquet").save("innerJoin_movies_links.parquet")
 
 -- e utilizando compressão gzip, qual o tamanho do arquivo em bytes ?
-innerJoin_movies_links.repartition(1).write.option("compression","gzip").format("parquet").save("/home/semantix/workspace/Aulas/exercicioSpark/innerJoin_movies_links.parquet")
+innerJoin_movies_links.repartition(1).write.option("compression","gzip").format("parquet").save("exercicioSpark/innerJoin_movies_links.parquet")
 
 -- inclua duas colunas, cada uma com o link completo das páginas IMDb e The Movie Database de cada filme.
 innerJoin_movies_links.createOrReplaceTempView("tb_innerJoin_movies_links")
 val select_columns_IMDb_tile = spark.sqlContext.sql("select title,imdbId from tb_innerJoin_movies_links")
 
 -- guarde este DF em 1 arquivo parquet com compressão padrão.
-select_columns_IMDb_tile.repartition(1).write.option("compression","gzip").format("parquet").save("/home/semantix/workspace/Aulas/exercicioSpark/select_columns_IMDb_tile.parquet")
+select_columns_IMDb_tile.repartition(1).write.option("compression","gzip").format("parquet").save("exercicioSpark/select_columns_IMDb_tile.parquet")
 
 ---------------------------------------------------------------------
 
@@ -98,15 +98,15 @@ val select_ratings_null = spark.sqlContext.sql("select * from tb_innerJoin_movie
 select_ratings_null.count()
 
 -- considerando inclusive os filmes sem avaliações, grave 1 arquivo parquet com compressão snappy, qual o tamanho do arquivo em bytes ?
-select_ratings_null.repartition(1).write.option("compression","snappy").format("parquet").save("/home/semantix/workspace/Aulas/exercicioSpark/select_ratings_null.parquet")
+select_ratings_null.repartition(1).write.option("compression","snappy").format("parquet").save("exercicioSpark/select_ratings_null.parquet")
 
 
 -- com compressão gzip, qual o tamanho do arquivo em bytes ?
-select_ratings_null.repartition(1).write.option("compression","gzip").format("parquet").save("/home/semantix/workspace/Aulas/exercicioSpark/select_ratings_null.parquet")
+select_ratings_null.repartition(1).write.option("compression","gzip").format("parquet").save("select_ratings_null.parquet")
 
 -- com compressão padrão, qual o tamanho do arquivo em bytes ?
 
-select_ratings_null.repartition(1).write.format("parquet").save("/home/semantix/workspace/Aulas/exercicioSpark/innerJoin_movies_links.parquet")
+select_ratings_null.repartition(1).write.format("parquet").save("innerJoin_movies_links.parquet")
 
 
 -- entre os filmes sem avaliação, qual o código do filme que possui o título mais estenso ?
@@ -138,7 +138,7 @@ melhor_classfc.show()
 melhor_classfc.show(50)
 
 -- grave este DF em formato parquet com compressão padrão.
-melhor_classfc.repartition(1).write.format("parquet").save("/home/semantix/workspace/Aulas/exercicioSpark/melhor_classfc.parquet")
+melhor_classfc.repartition(1).write.format("parquet").save("melhor_classfc.parquet")
 
 
 -------------------------------------------------------------------------------
@@ -148,10 +148,10 @@ val innerJoin_movies_tags = df_movies.join(df_tags,Seq("movieId"),"left")
 > o que representa o cruzamento entre estes dois dataframes ?
 R: left join 
 > grave 1 arquivo em formato parquet e compressão gzip. qual o tamanho deste arquivo em bytes ?
-innerJoin_movies_tags.repartition(1).write.option("compression","gzip").format("parquet").save("/home/semantix/workspace/Aulas/exercicioSpark/innerJoin_movies_tags.parquet")
+innerJoin_movies_tags.repartition(1).write.option("compression","gzip").format("parquet").save("innerJoin_movies_tags.parquet")
 
 > utilizando compressão snappy, qual o tamanho deste arquivo em bytes ?
-innerJoin_movies_tags.repartition(1).write.option("compression","snappy").format("parquet").save("/home/semantix/workspace/Aulas/exercicioSpark/innerJoin_movies_tags.parquet")
+innerJoin_movies_tags.repartition(1).write.option("compression","snappy").format("parquet").save("innerJoin_movies_tags.parquet")
 
 > faça um comparativo de tempo entre a gravação entre os dois arquivos.
 --

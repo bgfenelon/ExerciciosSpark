@@ -4,9 +4,9 @@ acredito que fazer isso manualmente seja mais rápido... vcs podem fazer essa pa
 1 - COLETA DE COORDENADAS: no google maps procurar todas as estações de metro (linhas amarela, vermelha, verde, azul) e trem (dentro da área das marginais)
 2 - MONTAR ARQUIVO CSV: com o seguinte cabeçalho "estacao;tipo;lat;lon" onde "tipo" significa metro ou trem
 
-val df_linhas = spark.read.format("csv").option("header", "true").load("/home/semantix/workspace/Aulas/ExerciciosSpark/estacoes.csv")
+val df_linhas = spark.read.format("csv").option("header", "true").load("distancia/estacoes.csv")
 
-val df_imoveis = spark.read.format("parquet").option("header", "true").load("/home/semantix/workspace/Aulas/ExerciciosSpark/imoveis_20200402.gz.parquet")
+val df_imoveis = spark.read.format("parquet").option("header", "true").load("distancia/imoveis_20200402.gz.parquet")
 
 
 
